@@ -9,6 +9,11 @@ import SelectOption from './_components/SelectOption'
 import { UserInputContext } from '@/app/_context/UserInputContext'
 import { GenerateCourseLayout_AI } from '@/configs/AiModel'
 import LoadingDialog from './_components/LoadingDialog'
+import uuid4 from "uuid4";
+import { useUser } from '@clerk/nextjs';
+import { db } from '@/configs/db';
+import { CourseList } from '@/configs/schema';
+import { useRouter } from 'next/navigation';
 
 function CreateCourse() {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -27,6 +32,9 @@ function CreateCourse() {
     !!userCourseInput.length &&
     !!userCourseInput.video &&
     !!userCourseInput.noOfchapters;
+
+  const {user} = useUser();
+  const router = useRouter();
 
   const handleNext = () => {
     if (activeIndex < StepperOptions.length - 1) {
@@ -51,8 +59,29 @@ function CreateCourse() {
     console.log(result.response?.text)
     console.log(JSON.parse(result.response?.text()))
     setLoading(false)
+    SaveCourseLayoutInDb(JSON.parse(result.response?.text()))
     // Here you would typically send this prompt to your AI service
   };
+
+  const SaveCourseLayoutInDb = async (courseLayout) => {
+    // Generate a new UUID
+var id = uuid4();
+
+    setLoading(true)
+    const result = await db.insert(CourseList).values({
+      courseId: id,
+      name: userCourseInput?.topic,
+      level: userCourseInput?.difficulty,
+      category: userCourseInput?.category,
+      courseOutput: courseLayout,
+      createdBy:user?.primaryEmailAddress?.emailAddress,
+      userName: user?.fullName,
+      userProfileImage:user?.imageUrl
+    })
+    console.log("Finished Saving in DB")
+    router.replace(`/create-course/${id}`)
+    setLoading(false)
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
